@@ -1,0 +1,70 @@
+#!/bin/sh
+
+verbose=0;
+localOrRemote='-r'
+refbranch=$(git rev-parse --abbrev-ref HEAD)
+testbranch=''
+displayOkKo=0
+markerok="\033[32m✔\033[0m"
+markerko="\033[31m✗\033[0m"
+while getopts "hvlonp" opt; do
+	case $opt in
+		h)
+			echo 'git branchstats [options] [[refbranch] testbranch] ';
+			echo 'testbranch is to get status of a single branch instead of all remote branches'
+			echo 'if refbranch is not set it default to current branch'
+			echo '-h Display this help';
+			echo '-v display missing commits from branch that are not fully merged'
+			echo '-l display status for local branches instead of remote branches'
+			echo '-o display only fully merged branches'
+			echo '-n display only not fully merged branches'
+			echo '-p porcelain mode no fancy output "use = prefix for fully merged branch'
+			echo '   = prefix for fully merged branch'
+			echo '   + prefix for branch with missing commits'
+			exit
+			;;
+		v) verbose=1 ;;
+		l) localOrRemote='-l' ;;
+		o) displayOkKo=1 ;;
+		n) displayOkKo=-1 ;;
+		p)
+			markerok="="
+			markerko="+"
+			;;
+		\?) echo "Invalid option: -$OPTARG" >&2 ;;
+	esac
+done
+shift $((OPTIND-1))
+
+if [ "$2" ]; then
+	if [ -z $(git branch -a | grep -E "^\s*(remotes/)?$1\$") ]; then
+		echo "$1 is not a valid refbranch"
+		exit 1
+	fi
+	refbranch="$1"
+	testbranch="$2"
+elif [ "$1" ]; then
+	testbranch="$1"
+else
+	testbranch=$(git branch $localOrRemote | grep -v $refbranch)
+fi
+
+if [ -z "$testbranch" ]; then
+	echo "no branch to test"
+	exit
+fi
+
+print_missing () {
+	missing=$(git cherry --abbrev -v $refbranch $1 | sed 's/^/  /g')
+	if [ "$?" -ne 0 ]; then
+		return
+	fi
+	if [ -z "$missing" ]; then
+		[ $displayOkKo -ge 0 ] && echo "$markerok $line"
+	else
+		[ $displayOkKo -le 0 ] && echo "$markerko $line" && [ $verbose -eq 1 ] && echo "$missing";
+	fi
+}
+
+echo "$testbranch" | while read line; do  print_missing $line; done
+

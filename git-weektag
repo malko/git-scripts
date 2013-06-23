@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# display help
+if [ ! -z $( echo "$@" | grep -e '-[a-zA-Z]*h') ]; then
+	echo "propose and eventually set next git tag for this week"
+	echo "-h this help"
+	echo "-v list previous week tags"
+	echo "-f fetch tags before performing the command"
+	echo "-s set the proposed tag"
+	echo "-p with s will push newly created tag"
+	echo "-S set the proposed tag and push it (same as -sp)"
+	exit;
+fi
+
+# are we in verbose mode
+if [ ! -z $( echo "$@" | grep -e '-[a-zA-Z]*v') ]; then
+	verbose='1'
+fi
+
+# fetch tags first if required
+if [ ! -z  $( echo "$@" | grep -e '-[a-zA-Z]*f') ]; then
+	[ $verbose ] && echo "Fetching tags";
+	git fetch --tags > /dev/null 2>&1
+fi
+
+# prepare default week tag
+tag=$(date +%y\.%V)
+proposedTag="$tag"
+lastTags="$(git tag | grep "$tag")"
+
+
+# no tag found this week 
+if [ -z "$lastTags" ]; then
+	lastTags="$(git describe --tags --abbrev=0 2> /dev/null || echo 'no tag found')"
+	[ $verbose ] && echo "no tag this week, last tag: $lastTags"
+else
+	# found some tags get the latest and proposed a new one
+	lastTags=$( echo "$lastTags" | sort -rV )
+	[ $verbose ] && echo "tags of the week:\n$lastTags\n--------------"
+	proposedTag=$(echo "$lastTags" | head -n 1)
+	proposedTag=$(echo "$proposedTag" | awk -F "." '{print $1 "." $2 "." $3+1}')
+fi  
+
+echo "proposed tag: $proposedTag"
+
+if [ ! -z $( echo "$@" | grep -e '-[a-zA-Z]*[Ss]') ]; then
+	[ $verbose ] && echo "set tag to $proposedTag";
+	git tag $proposedTag
+	if [ ! -z $( echo "$@" | grep -e '-[a-zA-Z]*[Sp]') ]; then
+		git push --tags
+	fi
+fi

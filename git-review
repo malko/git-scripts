@@ -1,0 +1,6 @@
+#!/bin/sh
+against="$@"
+if [ -z "$against" ]; then
+	against="origin/master"
+fi  
+git show -p $( git cherry -v $against | grep '^+' | awk '{ print($2) }' ) 

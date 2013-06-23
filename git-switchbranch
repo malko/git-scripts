@@ -1,0 +1,8 @@
+#!/bin/sh
+# get latest branch we were on
+latest=$(git reflog | grep "moving from" | head -n1 |awk -F " " '{print $6}');
+if [ -z $(git branch |grep "$latest") ]; then
+	echo "$latest is not locally present"
+	exit
+fi
+git co "$latest"

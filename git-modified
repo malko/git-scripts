@@ -1,0 +1,7 @@
+#!/bin/sh
+against="$@"
+if [ -z "$against" ]; then
+	against="origin/master"
+fi  
+git show --name-only $( git cherry -v $against | grep '^+' | awk '{ print($2) }' ) | egrep -v '^(commit |Author:|Date:|\s|$)' | sort -u
+
